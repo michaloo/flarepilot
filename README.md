@@ -1,7 +1,7 @@
 # flarepilot
 
 <p align="center">
-  <img src="flare-demo.svg" alt="flarepilot demo" width="720">
+  <img src="flarepilot-demo.svg" alt="flarepilot demo" width="720">
 </p>
 
 Dokku/Heroku/Fly.io-style deployments on Cloudflare Containers.
