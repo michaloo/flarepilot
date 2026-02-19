@@ -1,30 +1,30 @@
 # flarepilot
 
+Dokku/Heroku/Fly.io-style deployments on Cloudflare Containers.
+
 <p align="center">
   <img src="flarepilot-demo.svg" alt="flarepilot demo" width="720">
 </p>
 
-Dokku/Heroku/Fly.io-style deployments on Cloudflare Containers.
-
 ## What is this?
 
-Flarepilot is a CLI that deploys and manages containerized apps on Cloudflare's global network. No wrangler dependency — it talks directly to the Cloudflare API.
+Flarepilot is a CLI that deploys and manages containerized apps on Cloudflare's global network. No wrangler dependency - it talks directly to the Cloudflare API.
 
 Under the hood, each app is a Cloudflare Worker backed by Durable Objects running your container image. A bundled worker template handles load balancing across your configured regions and instances.
 
 **Two components:**
 
-- **CLI** (`flarepilot`) — builds your Docker image, pushes it to Cloudflare's container registry, deploys the worker, and manages configuration. All state lives in the Cloudflare API — the only local file is your auth token.
-- **Worker template** — a lightweight router that reads your app config from an environment binding, picks the closest region based on the request's origin, and distributes traffic across instances.
+- **CLI** (`flarepilot`) - builds your Docker image, pushes it to Cloudflare's container registry, deploys the worker, and manages configuration. All state lives in the Cloudflare API - the only local file is your auth token.
+- **Worker template** - a lightweight router that reads your app config from an environment binding, picks the closest region based on the request's origin, and distributes traffic across instances.
 
 ## Features
 
-- **One-command deploy** — `flarepilot deploy` builds your Dockerfile, pushes to Cloudflare's registry, and deploys. Live Docker-based app on Cloudflare within a couple of minutes.
-- **Instance load balancing** — run multiple instances per region in multiple regions. Traffic is distributed across them.
-- **Multi-region scaling** — use `locationHints` for basic multi-region deployments.
-- **Easy config updates** — change env vars, scaling, and custom domains without redeploying your image.
-- **Custom domains** — interactive zone picker, automatic DNS record creation, root or subdomain routing.
-- **Zero external dependencies** — no wrangler, no KV, no external databases, only a Cloudflare API token
+- **One-command deploy** - `flarepilot deploy` builds your Dockerfile, pushes to Cloudflare's registry, and deploys. Live Docker-based app on Cloudflare within a couple of minutes.
+- **Instance load balancing** - run multiple instances per region in multiple regions. Traffic is distributed across them.
+- **Multi-region scaling** - use `locationHints` for basic multi-region deployments.
+- **Easy config updates** - change env vars, scaling, and custom domains without redeploying your image.
+- **Custom domains** - interactive zone picker, automatic DNS record creation, root or subdomain routing.
+- **Zero external dependencies** - no wrangler, no KV, no external databases, only a Cloudflare API token
 
 ## Quick start
 
@@ -82,7 +82,7 @@ flarepilot scale myapp --instance-type standard
 flarepilot scale myapp --vcpu 1 --memory 512
 ```
 
-Regions are Durable Object `locationHints` — Cloudflare will attempt to place containers near the requested region but exact placement is not guaranteed. Run `flarepilot regions` to see all 9 available regions.
+Regions are Durable Object `locationHints` - Cloudflare will attempt to place containers near the requested region but exact placement is not guaranteed. Run `flarepilot regions` to see all 9 available regions.
 
 ## FAQ
 
@@ -102,7 +102,7 @@ Each request hits a Cloudflare Worker at the nearest edge location. The worker r
 
 ### How does scaling work?
 
-Scaling is lazy and happens at the load balancer level. When you scale up (e.g., increase instances from 2 to 4), new instances are not created immediately — the load balancer will create them on the next incoming request. When you scale down, existing instances are not stopped or removed right away. They will eventually sleep and be reclaimed based on the `sleepAfter` parameter (default 30s of inactivity). This simple strategy keeps the implementation straightforward and will be improved in the future.
+Scaling is lazy and happens at the load balancer level. When you scale up (e.g., increase instances from 2 to 4), new instances are not created immediately - the load balancer will create them on the next incoming request. When you scale down, existing instances are not stopped or removed right away. They will eventually sleep and be reclaimed based on the `sleepAfter` parameter (default 30s of inactivity). This simple strategy keeps the implementation straightforward and will be improved in the future.
 
 ### Does it autoscale?
 
