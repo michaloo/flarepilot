@@ -6,11 +6,11 @@ Dokku/Heroku/Fly.io-style deployments on Cloudflare Containers.
   <img src="demo-app/flarepilot-demo.svg" alt="flarepilot demo" width="720"><br>
 </p>
 
-See it in action loading this app multiple times to see how location and uptime behaves:
+See it in action - load the app a few times to see how location and uptime behave:
 
 <a href="https://flarepilot-snowy-hill-6237.tag-concierge.workers.dev/" target="_blank">Live demo</a>
 
-or from command line:
+Or from the command line:
 
 ```
 curl https://flarepilot-old-star-5126.tag-concierge.workers.dev/
