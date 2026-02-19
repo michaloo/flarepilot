@@ -3,7 +3,8 @@
 Dokku/Heroku/Fly.io-style deployments on Cloudflare Containers.
 
 <p align="center">
-  <img src="flarepilot-demo.svg" alt="flarepilot demo" width="720">
+  <img src="flarepilot-demo.svg" alt="flarepilot demo" width="720"><br>
+  <a href="https://flarepilot-snowy-hill-6237.tag-concierge.workers.dev/">Live demo</a>
 </p>
 
 ## What is this?
