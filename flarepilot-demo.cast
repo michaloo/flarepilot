@@ -1,5 +1,6 @@
 {"version":3,"term":{"cols":240,"rows":57,"type":"xterm-256color","version":"iTerm2 3.6.6","theme":{"fg":"#cccac3","bg":"#20232f","palette":"#171a23:#df8779:#9ad779:#f3ce7c:#84c9f6:#d5bbf6:#a2dfc8:#c7c7c7:#686868:#e48c7d:#defe90:#f8d381:#8acefb:#dac0fb:#a7e4cd:#ffffff"}},"timestamp":1771491832,"command":"PS1=\"$ \" exec /bin/zsh -f","env":{"SHELL":"/bin/zsh"}}
-[0.016, "o", "\u001b[1m\u001b[7m%\u001b[27m\u001b[1m\u001b[0m                                                                                                                                                                                                                                               \r \r"]
+[0, "o", "Dockerfile\t\t\tindex.js\t\t\tpackage.json\r\n"]
+[1, "o", "\u001b[1m\u001b[7m%\u001b[27m\u001b[1m\u001b[0m                                                                                                                                                                                                                                               \r \r"]
 [0.006, "o", "\r\u001b[0m\u001b[27m\u001b[24m\u001b[J$ \u001b[K\u001b[?2004h"]
 [0.1, "o", "f"]
 [0.09, "o", "\bfl"]
