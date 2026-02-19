@@ -1,0 +1,7 @@
+{
+  "name": "flarepilot",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ]
+}

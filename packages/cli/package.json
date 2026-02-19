@@ -1,0 +1,15 @@
+{
+  "name": "flarepilot",
+  "version": "0.1.0",
+  "description": "Dokku-like self-hosted PaaS on Cloudflare Containers",
+  "bin": {
+    "flarepilot": "./src/cli.js"
+  },
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^13.0.0",
+    "esbuild": "^0.25.0",
+    "kleur": "^4.1.5"
+  }
+}
