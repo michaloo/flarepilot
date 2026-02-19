@@ -13,7 +13,7 @@ import { homedir } from "os";
 import { fileURLToPath } from "url";
 
 var __dirname = dirname(fileURLToPath(import.meta.url));
-var templateDir = join(__dirname, "..", "..", "..", "worker-template");
+var templateDir = join(__dirname, "..", "..", "worker-template");
 var cacheDir = join(homedir(), ".flarepilot");
 var bundlePath = join(cacheDir, "worker-bundle.js");
 var hashPath = join(cacheDir, "worker-bundle.hash");

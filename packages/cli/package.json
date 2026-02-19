@@ -1,12 +1,29 @@
 {
   "name": "flarepilot",
   "version": "0.1.0",
-  "description": "Dokku-like self-hosted PaaS on Cloudflare Containers",
+  "description": "Heroku/Fly.io-style deployments on Cloudflare Containers",
   "bin": {
     "flarepilot": "./src/cli.js"
   },
   "type": "module",
   "license": "MIT",
+  "files": [
+    "src",
+    "worker-template"
+  ],
+  "keywords": [
+    "cloudflare",
+    "containers",
+    "docker",
+    "deploy",
+    "paas",
+    "heroku",
+    "flyio"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/michaloo/flarepilot"
+  },
   "dependencies": {
     "commander": "^13.0.0",
     "esbuild": "^0.25.0",
