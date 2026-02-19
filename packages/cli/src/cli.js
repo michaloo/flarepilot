@@ -53,6 +53,7 @@ program
   .option("--disk <mb>", "Disk in MB (e.g. 2000, 5000)", parseInt)
   .option("--no-observability", "Disable Workers observability/logs")
   .option("--json", "Output result as JSON")
+  .option("-y, --yes", "Skip confirmation prompt")
   .action(deploy);
 
 // --- Apps (topic root = list) ---
@@ -140,8 +141,8 @@ domainsCmd
   .action(domainsList);
 
 domainsCmd
-  .command("add <args...>")
-  .description("Add a custom domain ([name] domain) — applies live")
+  .command("add [args...]")
+  .description("Add a custom domain (interactive if no domain given)")
   .action(domainsAdd);
 
 domainsCmd
@@ -197,6 +198,10 @@ program
     for (var r of regions) {
       console.log(`  ${fmt.bold(r.code.padEnd(6))} ${r.name.padEnd(25)} ${fmt.dim(r.location)}`);
     }
+    console.log("");
+    console.log(fmt.dim("  These are Durable Object locationHints. Cloudflare will attempt"));
+    console.log(fmt.dim("  to place containers near the specified region but exact placement"));
+    console.log(fmt.dim("  is not guaranteed."));
     console.log("");
   });
 

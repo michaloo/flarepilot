@@ -1,22 +1,28 @@
 import { execSync } from "child_process";
 import { platform } from "os";
-import { getConfig, getWorkersSubdomain } from "../lib/cf.js";
+import { getConfig, getAppConfig, getWorkersSubdomain } from "../lib/cf.js";
 import { fatal, fmt } from "../lib/output.js";
 import { resolveAppName } from "../lib/link.js";
 
 export async function open(name) {
   name = resolveAppName(name);
   var config = getConfig();
-  var subdomain = await getWorkersSubdomain(config);
 
-  if (!subdomain) {
-    fatal(
-      "Could not resolve workers.dev subdomain.",
-      "Ensure your Cloudflare account has a workers.dev subdomain configured."
-    );
+  // Prefer custom domain if available
+  var url;
+  var appConfig = await getAppConfig(config, name);
+  if (appConfig?.domains?.length > 0) {
+    url = `https://${appConfig.domains[0]}`;
+  } else {
+    var subdomain = await getWorkersSubdomain(config);
+    if (!subdomain) {
+      fatal(
+        "Could not resolve workers.dev subdomain.",
+        "Ensure your Cloudflare account has a workers.dev subdomain configured."
+      );
+    }
+    url = `https://flarepilot-${name}.${subdomain}.workers.dev`;
   }
-
-  var url = `https://flarepilot-${name}.${subdomain}.workers.dev`;
 
   process.stderr.write(`Opening ${fmt.url(url)}...\n`);
 

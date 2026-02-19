@@ -45,13 +45,24 @@ export async function ps(name, options) {
   }
 
   var subdomain = await getWorkersSubdomain(config);
-  var url = subdomain
+  var defaultUrl = subdomain
     ? `https://flarepilot-${name}.${subdomain}.workers.dev`
     : null;
+  var customDomains = appConfig.domains || [];
 
   console.log("");
   console.log(`${fmt.bold("App:")}        ${fmt.app(name)}`);
-  if (url) console.log(`${fmt.bold("URL:")}        ${fmt.url(url)}`);
+  if (customDomains.length > 0) {
+    console.log(`${fmt.bold("URL:")}        ${fmt.url(`https://${customDomains[0]}`)}`);
+    for (var d of customDomains.slice(1)) {
+      console.log(`             ${fmt.url(`https://${d}`)}`);
+    }
+    if (defaultUrl) {
+      console.log(`             ${fmt.dim(defaultUrl)}`);
+    }
+  } else if (defaultUrl) {
+    console.log(`${fmt.bold("URL:")}        ${fmt.url(defaultUrl)}`);
+  }
   console.log(
     `${fmt.bold("Image:")}      ${appConfig.image || fmt.dim("(not deployed)")}`
   );

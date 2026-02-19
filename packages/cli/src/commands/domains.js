@@ -1,3 +1,4 @@
+import { createInterface } from "readline";
 import {
   getConfig,
   getAppConfig,
@@ -14,6 +15,11 @@ import {
 } from "../lib/cf.js";
 import { phase, status, success, fatal, hint, fmt } from "../lib/output.js";
 import { resolveAppName } from "../lib/link.js";
+import kleur from "kleur";
+
+function prompt(rl, question) {
+  return new Promise((resolve) => rl.question(question, resolve));
+}
 
 export async function domainsList(name, options) {
   name = resolveAppName(name);
@@ -50,7 +56,7 @@ export async function domainsList(name, options) {
 
   if (domains.length === 0) {
     console.log(`${fmt.bold("Custom:")}  ${fmt.dim("(none)")}`);
-    hint("Add", `flarepilot domains add ${name} yourdomain.com`);
+    hint("Add", `flarepilot domains add ${name}`);
     return;
   }
 
@@ -61,16 +67,24 @@ export async function domainsList(name, options) {
 }
 
 export async function domainsAdd(args) {
-  // 1 arg = domain (resolve name from link). 2 args = name + domain.
   var name, domain;
+
+  // Parse args: 0 args = interactive, 1 arg = domain or name, 2 args = name + domain
   if (args.length === 2) {
     name = args[0];
     domain = args[1];
   } else if (args.length === 1) {
-    name = resolveAppName(null);
-    domain = args[0];
+    // Could be a domain or just an app name — check if it looks like a domain
+    if (args[0].includes(".")) {
+      name = resolveAppName(null);
+      domain = args[0];
+    } else {
+      name = args[0];
+      domain = null;
+    }
   } else {
-    fatal("Usage: flarepilot domains add [name] <domain>");
+    name = resolveAppName(null);
+    domain = null;
   }
 
   var config = getConfig();
@@ -84,8 +98,8 @@ export async function domainsAdd(args) {
     );
   }
 
-  // Find the zone for this hostname
-  status("Looking up zones...");
+  // Fetch zones
+  status("Loading zones...");
   var zones = await listZones(config);
 
   if (zones.length === 0) {
@@ -95,17 +109,91 @@ export async function domainsAdd(args) {
     );
   }
 
-  var zone = findZoneForHostname(zones, domain);
+  var rl = createInterface({ input: process.stdin, output: process.stderr });
+  var zone;
 
-  if (!zone) {
-    var zoneList = zones.map((z) => `  ${z.name}`).join("\n");
+  if (domain) {
+    // Domain provided — find matching zone
+    zone = findZoneForHostname(zones, domain);
+    if (!zone) {
+      rl.close();
+      var zoneList = zones.map((z) => `  ${z.name}`).join("\n");
+      fatal(
+        `No zone found for '${domain}'.`,
+        `Available zones:\n${zoneList}`
+      );
+    }
+  } else {
+    // Interactive — pick zone
+    process.stderr.write(`\n${kleur.bold("Available zones:")}\n\n`);
+    for (var i = 0; i < zones.length; i++) {
+      process.stderr.write(
+        `  ${kleur.bold(`[${i + 1}]`)} ${zones[i].name}\n`
+      );
+    }
+    process.stderr.write("\n");
+
+    var zoneChoice = await prompt(rl, `Select zone [1-${zones.length}]: `);
+    var zoneIdx = parseInt(zoneChoice, 10) - 1;
+    if (isNaN(zoneIdx) || zoneIdx < 0 || zoneIdx >= zones.length) {
+      rl.close();
+      fatal("Invalid selection.");
+    }
+    zone = zones[zoneIdx];
+
+    // Pick root or subdomain
+    process.stderr.write(`\n${kleur.bold("Route type:")}\n\n`);
+    process.stderr.write(`  ${kleur.bold("[1]")} Root domain (${zone.name})\n`);
+    process.stderr.write(`  ${kleur.bold("[2]")} Subdomain (*.${zone.name})\n`);
+    process.stderr.write("\n");
+
+    var routeChoice = await prompt(rl, "Select [1-2]: ");
+
+    if (routeChoice.trim() === "1") {
+      domain = zone.name;
+    } else if (routeChoice.trim() === "2") {
+      var sub = await prompt(rl, `Subdomain: ${fmt.dim("___." + zone.name + " → ")} `);
+      sub = (sub || "").trim();
+      if (!sub) {
+        rl.close();
+        fatal("No subdomain provided.");
+      }
+      domain = `${sub}.${zone.name}`;
+    } else {
+      rl.close();
+      fatal("Invalid selection.");
+    }
+  }
+
+  rl.close();
+
+  // Check for existing DNS records — never overwrite
+  status(`Checking existing DNS records for ${domain}...`);
+  var existing = await listDnsRecords(config, zone.id, { name: domain });
+
+  if (existing.length > 0) {
+    var types = existing.map((r) => `${r.type} → ${r.content}`).join("\n  ");
     fatal(
-      `No zone found for '${domain}'.`,
-      `Available zones:\n${zoneList}`
+      `DNS record already exists for ${domain}.`,
+      `Existing records:\n  ${types}\n\nRemove the existing record first, or choose a different domain.`
     );
   }
 
-  // Create CNAME record pointing to workers.dev
+  // Attach domain to worker via CF API first (validates no external conflicts)
+  status(`Attaching ${domain} to ${scriptName} (zone: ${zone.name})...`);
+  try {
+    await addWorkerDomain(config, scriptName, domain, zone.id);
+  } catch (e) {
+    if (e.message.includes("already has externally managed DNS records")) {
+      fatal(
+        `DNS record already exists for ${domain} (externally managed).`,
+        "Remove the existing DNS record first, or choose a different domain."
+      );
+    }
+    throw e;
+  }
+
+  // Create CNAME record pointing to workers.dev (only after domain is attached)
   var subdomain = await getWorkersSubdomain(config);
   var target = subdomain ? `flarepilot-${name}.${subdomain}.workers.dev` : null;
 
@@ -119,16 +207,12 @@ export async function domainsAdd(args) {
         proxied: true,
       });
     } catch (e) {
-      // CNAME may already exist — not fatal
+      // Not fatal — worker domain is already attached, CNAME is optional
       if (!e.message.includes("already exists")) {
-        fatal("Failed to create DNS record.", e.message);
+        process.stderr.write(`  ${fmt.dim(`Warning: could not create CNAME: ${e.message}`)}\n`);
       }
     }
   }
-
-  // Attach domain to worker via CF API
-  status(`Attaching ${domain} to flarepilot-${name} (zone: ${zone.name})...`);
-  await addWorkerDomain(config, scriptName, domain, zone.id);
 
   // Update app config metadata
   if (!appConfig.domains) appConfig.domains = [];

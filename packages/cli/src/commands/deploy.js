@@ -15,6 +15,7 @@ import {
   CF_REGISTRY,
 } from "../lib/cf.js";
 import { dockerBuild, dockerTag, dockerPush, dockerLogin } from "../lib/docker.js";
+import { createInterface } from "readline";
 import { getWorkerBundle, templateHash } from "../lib/bundle.js";
 import { phase, status, success, hint, fatal, fmt, generateAppName } from "../lib/output.js";
 import { readLink, linkApp } from "../lib/link.js";
@@ -135,10 +136,35 @@ export async function deploy(nameOrPath, path, options) {
       deployedAt: new Date().toISOString(),
     };
 
-    process.stderr.write(`\nCreating app ${fmt.app(name)} with defaults:\n`);
-    process.stderr.write(`  Regions:    ${appConfig.regions.join(", ")}\n`);
-    process.stderr.write(`  Instances:  ${appConfig.instances}\n`);
-    process.stderr.write(`  Port:       ${appConfig.port}\n`);
+  }
+
+  // --- Summary & confirmation ---
+  var instanceDesc = appConfig.vcpu
+    ? `${appConfig.vcpu} vCPU, ${appConfig.memory || "default"} MiB`
+    : appConfig.instanceType || "lite";
+
+  process.stderr.write(`\n${fmt.bold("Deploy summary")}\n`);
+  process.stderr.write(`${fmt.dim("─".repeat(40))}\n`);
+  process.stderr.write(`  ${fmt.bold("App:")}        ${fmt.app(name)}${isFirstDeploy ? fmt.dim(" (new)") : ""}\n`);
+  process.stderr.write(`  ${fmt.bold("Path:")}       ${dockerPath}\n`);
+  process.stderr.write(`  ${fmt.bold("Image:")}      ${remoteTag}\n`);
+  process.stderr.write(`  ${fmt.bold("Regions:")}    ${appConfig.regions.join(", ")}\n`);
+  process.stderr.write(`  ${fmt.bold("Instances:")}  ${appConfig.instances || 2} per region\n`);
+  process.stderr.write(`  ${fmt.bold("Type:")}       ${instanceDesc}\n`);
+  process.stderr.write(`  ${fmt.bold("Port:")}       ${appConfig.port || 8080}\n`);
+  process.stderr.write(`  ${fmt.bold("Sleep:")}      ${appConfig.sleepAfter || "30s"}\n`);
+  process.stderr.write(`${fmt.dim("─".repeat(40))}\n`);
+
+  if (!options.yes) {
+    var rl = createInterface({ input: process.stdin, output: process.stderr });
+    var answer = await new Promise((resolve) =>
+      rl.question("\nProceed? [Y/n] ", resolve)
+    );
+    rl.close();
+    if (answer && !answer.match(/^y(es)?$/i)) {
+      process.stderr.write("Deploy cancelled.\n");
+      process.exit(0);
+    }
   }
 
   // 1. Build Docker image

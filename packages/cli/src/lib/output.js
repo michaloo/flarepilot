@@ -19,7 +19,7 @@ export function fatal(msg, fix) {
 }
 
 export function success(msg) {
-  process.stderr.write(`\n${kleur.green("✓")} ${msg}\n`);
+  process.stderr.write(`\n${kleur.green("-->")} ${msg}\n`);
 }
 
 export function hint(label, msg) {

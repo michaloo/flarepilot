@@ -12,8 +12,12 @@ import kleur from "kleur";
 
 var CONFIG_PATH = join(homedir(), ".flarepilot", "config.json");
 
+var PASS = kleur.green("[ok]");
+var FAIL = kleur.red("[!!]");
+
 export async function doctor() {
-  process.stderr.write(`\n${kleur.bold("Flarepilot Doctor")}\n\n`);
+  process.stderr.write(`\n${kleur.bold("flarepilot doctor")}\n`);
+  process.stderr.write(`${kleur.dim("─".repeat(40))}\n\n`);
   var allGood = true;
 
   allGood =
@@ -56,9 +60,9 @@ export async function doctor() {
       })) && allGood;
   }
 
-  process.stderr.write("\n");
+  process.stderr.write(`\n${kleur.dim("─".repeat(40))}\n`);
   if (allGood) {
-    process.stderr.write(kleur.green("Everything looks good!\n\n"));
+    process.stderr.write(kleur.green("All checks passed.\n\n"));
   } else {
     process.stderr.write(
       kleur.yellow("Some checks failed. Fix the issues above and re-run.\n\n")
@@ -69,10 +73,10 @@ export async function doctor() {
 function check(label, fn) {
   try {
     fn();
-    process.stderr.write(`  ${kleur.green("✓")} ${label}\n`);
+    process.stderr.write(`  ${PASS}  ${label}\n`);
     return true;
   } catch {
-    process.stderr.write(`  ${kleur.red("✗")} ${label}\n`);
+    process.stderr.write(`  ${FAIL}  ${label}\n`);
     return false;
   }
 }
@@ -80,10 +84,10 @@ function check(label, fn) {
 async function asyncCheck(label, fn) {
   try {
     await fn();
-    process.stderr.write(`  ${kleur.green("✓")} ${label}\n`);
+    process.stderr.write(`  ${PASS}  ${label}\n`);
     return true;
   } catch {
-    process.stderr.write(`  ${kleur.red("✗")} ${label}\n`);
+    process.stderr.write(`  ${FAIL}  ${label}\n`);
     return false;
   }
 }

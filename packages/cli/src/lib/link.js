@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, unlinkSync } from "fs";
 import { fatal, fmt } from "./output.js";
 
-var LINK_FILE = ".flarepilot";
+var LINK_FILE = ".flarepilot.json";
 
 export function readLink() {
   try {
@@ -14,6 +14,12 @@ export function readLink() {
 
 export function linkApp(name) {
   writeFileSync(LINK_FILE, JSON.stringify({ app: name }) + "\n");
+}
+
+export function unlinkApp() {
+  try {
+    unlinkSync(LINK_FILE);
+  } catch {}
 }
 
 export function resolveAppName(name) {

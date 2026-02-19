@@ -13,21 +13,21 @@ export function dockerBuild(contextPath, tag) {
   ensureDocker();
   execSync(
     `docker build --platform linux/amd64 --provenance=false -t ${tag} ${contextPath}`,
-    { stdio: "inherit" }
+    { stdio: "pipe" }
   );
 }
 
 export function dockerTag(source, target) {
-  execSync(`docker tag ${source} ${target}`, { stdio: "inherit" });
+  execSync(`docker tag ${source} ${target}`, { stdio: "pipe" });
 }
 
 export function dockerPush(tag) {
-  execSync(`docker push ${tag}`, { stdio: "inherit" });
+  execSync(`docker push ${tag}`, { stdio: "pipe" });
 }
 
 export function dockerLogin(registry, username, password) {
   execSync(
     `docker login --password-stdin --username ${username} ${registry}`,
-    { input: password, stdio: ["pipe", "inherit", "inherit"] }
+    { input: password, stdio: "pipe" }
   );
 }

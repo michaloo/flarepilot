@@ -4,9 +4,11 @@ import {
   deleteWorker,
   listWorkerScripts,
   getWorkersSubdomain,
+  findContainerApp,
+  deleteContainerApp,
 } from "../lib/cf.js";
 import { success, fatal, hint, fmt, table } from "../lib/output.js";
-import { resolveAppName } from "../lib/link.js";
+import { resolveAppName, readLink, unlinkApp } from "../lib/link.js";
 import { createInterface } from "readline";
 
 export async function appsList(options) {
@@ -108,12 +110,29 @@ export async function appsDestroy(name, options) {
   }
 
   var config = getConfig();
+  var scriptName = `flarepilot-${name}`;
 
-  process.stderr.write(`Deleting worker flarepilot-${name}...\n`);
+  // Delete container application first (before worker, since it references the DO namespace)
+  process.stderr.write(`Deleting container application...\n`);
   try {
-    await deleteWorker(config, `flarepilot-${name}`);
+    var containerApp = await findContainerApp(config, scriptName);
+    if (containerApp) {
+      await deleteContainerApp(config, containerApp.id);
+    }
+  } catch (e) {
+    process.stderr.write(`  ${fmt.dim(`Warning: ${e.message}`)}\n`);
+  }
+
+  process.stderr.write(`Deleting worker ${scriptName}...\n`);
+  try {
+    await deleteWorker(config, scriptName);
   } catch (e) {
     fatal(`Could not delete ${fmt.app(name)}.`, e.message);
+  }
+
+  // Remove .flarepilot.json if it points to this app
+  if (readLink() === name) {
+    unlinkApp();
   }
 
   success(`App ${fmt.app(name)} destroyed.`);

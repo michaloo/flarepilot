@@ -263,6 +263,15 @@ export async function createContainerApp(config, app) {
   return res.result;
 }
 
+export async function deleteContainerApp(config, appId) {
+  return cfApi(
+    "DELETE",
+    `/accounts/${config.accountId}/containers/applications/${appId}`,
+    null,
+    config.apiToken
+  );
+}
+
 export async function modifyContainerApp(config, appId, changes) {
   var res = await cfApi(
     "PATCH",
@@ -307,13 +316,21 @@ export async function deleteTail(config, scriptName, tailId) {
 // --- Zones ---
 
 export async function listZones(config) {
-  var res = await cfApi(
-    "GET",
-    `/zones?account.id=${config.accountId}&per_page=50&status=active`,
-    null,
-    config.apiToken
-  );
-  return res.result || [];
+  var all = [];
+  var page = 1;
+  while (true) {
+    var res = await cfApi(
+      "GET",
+      `/zones?account.id=${config.accountId}&per_page=50&status=active&page=${page}`,
+      null,
+      config.apiToken
+    );
+    var zones = res.result || [];
+    all.push(...zones);
+    if (zones.length < 50) break;
+    page++;
+  }
+  return all;
 }
 
 export function findZoneForHostname(zones, hostname) {
