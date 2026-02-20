@@ -18,7 +18,7 @@ import { dockerBuild, dockerTag, dockerPush, dockerLogin } from "../lib/docker.j
 import { createInterface } from "readline";
 import { getWorkerBundle, templateHash } from "../lib/bundle.js";
 import { phase, status, success, hint, fatal, fmt, generateAppName } from "../lib/output.js";
-import { readLink, linkApp } from "../lib/link.js";
+import { readLink, readLinkImage, linkApp } from "../lib/link.js";
 
 function buildContainerConfig(appConfig) {
   var cfg = {
@@ -62,7 +62,11 @@ export async function deploy(nameOrPath, path, options) {
   }
 
   var tag = options.tag || `${Date.now()}`;
-  var localTag = `flarepilot-${name}:${tag}`;
+
+  // Resolve prebuilt image: explicit --image flag > saved in .flarepilot.json
+  var prebuiltImage = options.image || readLinkImage() || null;
+
+  var localTag = prebuiltImage || `flarepilot-${name}:${tag}`;
   var remoteTag = `${CF_REGISTRY}/${config.accountId}/flarepilot-${name}:${tag}`;
 
   // Load existing config from deployed worker (null on first deploy)
@@ -146,7 +150,11 @@ export async function deploy(nameOrPath, path, options) {
   process.stderr.write(`\n${fmt.bold("Deploy summary")}\n`);
   process.stderr.write(`${fmt.dim("─".repeat(40))}\n`);
   process.stderr.write(`  ${fmt.bold("App:")}        ${fmt.app(name)}${isFirstDeploy ? fmt.dim(" (new)") : ""}\n`);
-  process.stderr.write(`  ${fmt.bold("Path:")}       ${dockerPath}\n`);
+  if (prebuiltImage) {
+    process.stderr.write(`  ${fmt.bold("Source:")}     ${prebuiltImage} ${fmt.dim("(pre-built)")}\n`);
+  } else {
+    process.stderr.write(`  ${fmt.bold("Path:")}       ${dockerPath}\n`);
+  }
   process.stderr.write(`  ${fmt.bold("Image:")}      ${remoteTag}\n`);
   process.stderr.write(`  ${fmt.bold("Regions:")}    ${appConfig.regions.join(", ")}\n`);
   process.stderr.write(`  ${fmt.bold("Instances:")}  ${appConfig.instances || 2} per region\n`);
@@ -167,12 +175,14 @@ export async function deploy(nameOrPath, path, options) {
     }
   }
 
-  // 1. Build Docker image
-  phase("Building image");
-  status(`${localTag} for linux/amd64`);
-  dockerBuild(dockerPath, localTag);
+  if (!prebuiltImage) {
+    // 1. Build Docker image
+    phase("Building image");
+    status(`${localTag} for linux/amd64`);
+    dockerBuild(dockerPath, localTag);
+  }
 
-  // 2. Push to Cloudflare Registry
+  // 2. Push to Cloudflare Registry (always — we tag with explicit timestamp)
   phase("Pushing to Cloudflare Registry");
   status("Authenticating with registry.cloudflare.com...");
   var creds = await getRegistryCredentials(config);
@@ -284,6 +294,6 @@ export async function deploy(nameOrPath, path, options) {
     hint("Next", `flarepilot open ${name}`);
   }
 
-  // Link this directory to the app
-  linkApp(name);
+  // Link this directory to the app (persist prebuilt image for subsequent deploys)
+  linkApp(name, prebuiltImage || undefined);
 }

@@ -38,7 +38,8 @@ program
 
 program
   .command("deploy [name] [path]")
-  .description("Deploy an app from a Dockerfile (name auto-generated if omitted)")
+  .description("Deploy an app from a Dockerfile or pre-built image")
+  .option("--image <image>", "Deploy a pre-built image (skip docker build)")
   .option("-t, --tag <tag>", "Image tag (default: deploy-<timestamp>)")
   .option("-e, --env <vars...>", "Set env vars (KEY=VALUE)")
   .option(
