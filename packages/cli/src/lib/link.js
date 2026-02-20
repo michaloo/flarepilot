@@ -12,8 +12,19 @@ export function readLink() {
   }
 }
 
-export function linkApp(name) {
-  writeFileSync(LINK_FILE, JSON.stringify({ app: name }) + "\n");
+export function readLinkImage() {
+  try {
+    var data = JSON.parse(readFileSync(LINK_FILE, "utf-8"));
+    return data.image || null;
+  } catch {
+    return null;
+  }
+}
+
+export function linkApp(name, image) {
+  var data = { app: name };
+  if (image) data.image = image;
+  writeFileSync(LINK_FILE, JSON.stringify(data) + "\n");
 }
 
 export function unlinkApp() {

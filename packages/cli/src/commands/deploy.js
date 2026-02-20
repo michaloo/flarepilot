@@ -18,7 +18,7 @@ import { dockerBuild, dockerTag, dockerPush, dockerLogin } from "../lib/docker.j
 import { createInterface } from "readline";
 import { getWorkerBundle, templateHash } from "../lib/bundle.js";
 import { phase, status, success, hint, fatal, fmt, generateAppName } from "../lib/output.js";
-import { readLink, linkApp } from "../lib/link.js";
+import { readLink, readLinkImage, linkApp } from "../lib/link.js";
 
 function buildContainerConfig(appConfig) {
   var cfg = {
@@ -62,11 +62,12 @@ export async function deploy(nameOrPath, path, options) {
   }
 
   var tag = options.tag || `${Date.now()}`;
-  var prebuiltImage = options.image || null;
+
+  // Resolve prebuilt image: explicit --image flag > saved in .flarepilot.json
+  var prebuiltImage = options.image || readLinkImage() || null;
+
   var localTag = prebuiltImage || `flarepilot-${name}:${tag}`;
-  var remoteTag = prebuiltImage && prebuiltImage.startsWith(CF_REGISTRY + "/")
-    ? prebuiltImage
-    : `${CF_REGISTRY}/${config.accountId}/flarepilot-${name}:${tag}`;
+  var remoteTag = `${CF_REGISTRY}/${config.accountId}/flarepilot-${name}:${tag}`;
 
   // Load existing config from deployed worker (null on first deploy)
   var appConfig;
@@ -174,8 +175,6 @@ export async function deploy(nameOrPath, path, options) {
     }
   }
 
-  var alreadyInRegistry = prebuiltImage && prebuiltImage.startsWith(CF_REGISTRY + "/");
-
   if (!prebuiltImage) {
     // 1. Build Docker image
     phase("Building image");
@@ -183,16 +182,14 @@ export async function deploy(nameOrPath, path, options) {
     dockerBuild(dockerPath, localTag);
   }
 
-  if (!alreadyInRegistry) {
-    // 2. Push to Cloudflare Registry
-    phase("Pushing to Cloudflare Registry");
-    status("Authenticating with registry.cloudflare.com...");
-    var creds = await getRegistryCredentials(config);
-    dockerLogin(CF_REGISTRY, creds.username, creds.password);
-    status(`Pushing ${remoteTag}...`);
-    dockerTag(localTag, remoteTag);
-    dockerPush(remoteTag);
-  }
+  // 2. Push to Cloudflare Registry (always — we tag with explicit timestamp)
+  phase("Pushing to Cloudflare Registry");
+  status("Authenticating with registry.cloudflare.com...");
+  var creds = await getRegistryCredentials(config);
+  dockerLogin(CF_REGISTRY, creds.username, creds.password);
+  status(`Pushing ${remoteTag}...`);
+  dockerTag(localTag, remoteTag);
+  dockerPush(remoteTag);
 
   // 3. Deploy worker
   phase("Deploying worker");
@@ -297,6 +294,6 @@ export async function deploy(nameOrPath, path, options) {
     hint("Next", `flarepilot open ${name}`);
   }
 
-  // Link this directory to the app
-  linkApp(name);
+  // Link this directory to the app (persist prebuilt image for subsequent deploys)
+  linkApp(name, prebuiltImage || undefined);
 }
