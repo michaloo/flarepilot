@@ -1,12 +1,51 @@
-import { getConfig, getAppConfig, getWorkersSubdomain } from "../lib/cf.js";
-import { fatal, fmt } from "../lib/output.js";
+import {
+  getConfig,
+  getAppConfig,
+  getWorkersSubdomain,
+  findContainerApp,
+  cfGraphQL,
+} from "../lib/cf.js";
+import { fatal, fmt, table } from "../lib/output.js";
 import { resolveAppName } from "../lib/link.js";
 import kleur from "kleur";
+
+var containerMetricsGQL = `query($accountTag: string!, $filter: AccountContainersMetricsAdaptiveGroupsFilter_InputObject!) {
+  viewer {
+    accounts(filter: { accountTag: $accountTag }) {
+      containersMetricsAdaptiveGroups(limit: 1000, filter: $filter) {
+        dimensions { applicationId region active durableObjectId }
+        avg { cpuLoad memory }
+      }
+    }
+  }
+}`;
+
+async function fetchContainerMetrics(config, containerAppId) {
+  if (!containerAppId) return [];
+  var now = new Date();
+  var since = new Date(now.getTime() - 15 * 60000);
+  try {
+    var data = await cfGraphQL(config, containerMetricsGQL, {
+      accountTag: config.accountId,
+      filter: {
+        datetimeFiveMinutes_geq: since.toISOString().slice(0, 19) + "Z",
+        datetimeFiveMinutes_leq: now.toISOString().slice(0, 19) + "Z",
+        applicationId_in: [containerAppId],
+      },
+    });
+    return data?.viewer?.accounts?.[0]?.containersMetricsAdaptiveGroups || [];
+  } catch {
+    return [];
+  }
+}
 
 export async function ps(name, options) {
   name = resolveAppName(name);
   var config = getConfig();
-  var appConfig = await getAppConfig(config, name);
+  var [appConfig, containerApp] = await Promise.all([
+    getAppConfig(config, name),
+    findContainerApp(config, `flarepilot-${name}`),
+  ]);
 
   if (!appConfig) {
     fatal(
@@ -16,18 +55,42 @@ export async function ps(name, options) {
   }
 
   var instances = appConfig.instances || 2;
+  var containerAppId = containerApp?.id || null;
+
+  // Fetch live metrics
+  var metrics = await fetchContainerMetrics(config, containerAppId);
+
+  // Aggregate: group by region + durableObjectId, keep only active instances
+  var containers = [];
+  for (var row of metrics) {
+    var dim = row.dimensions;
+    if (!dim.active) continue;
+    // Merge rows for the same DO instance
+    var existing = containers.find(
+      (c) => c.region === dim.region && c.doId === dim.durableObjectId
+    );
+    if (existing) {
+      existing.cpuSamples++;
+      existing.cpuLoad += row.avg?.cpuLoad || 0;
+      existing.memory += row.avg?.memory || 0;
+    } else {
+      containers.push({
+        region: dim.region,
+        doId: dim.durableObjectId,
+        cpuLoad: row.avg?.cpuLoad || 0,
+        memory: row.avg?.memory || 0,
+        cpuSamples: 1,
+      });
+    }
+  }
+  // Average the samples
+  for (var c of containers) {
+    c.cpuLoad = c.cpuLoad / c.cpuSamples;
+    c.memory = c.memory / c.cpuSamples;
+  }
+  containers.sort((a, b) => a.region.localeCompare(b.region) || a.doId.localeCompare(b.doId));
 
   if (options.json) {
-    var doInstances = [];
-    for (var region of appConfig.regions) {
-      for (var i = 0; i < instances; i++) {
-        doInstances.push({
-          id: `${region}-${i}`,
-          region,
-          index: i,
-        });
-      }
-    }
     console.log(
       JSON.stringify(
         {
@@ -35,7 +98,12 @@ export async function ps(name, options) {
           image: appConfig.image,
           regions: appConfig.regions,
           instances,
-          containers: doInstances,
+          containers: containers.map((c) => ({
+            region: c.region,
+            id: c.doId,
+            cpu: +(c.cpuLoad * 100).toFixed(1),
+            memoryMiB: +(c.memory / 1024 / 1024).toFixed(0),
+          })),
         },
         null,
         2
@@ -74,13 +142,22 @@ export async function ps(name, options) {
   }
 
   console.log(`\n${fmt.bold("Containers:")}`);
-  for (var region of appConfig.regions) {
-    for (var i = 0; i < instances; i++) {
-      console.log(`  ${kleur.green("●")} ${region}-${i}`);
-    }
+
+  if (containers.length > 0) {
+    var headers = ["", "REGION", "ID", "CPU", "MEMORY"];
+    var rows = containers.map((c) => [
+      kleur.green("●"),
+      c.region,
+      c.doId.slice(0, 8),
+      (c.cpuLoad * 100).toFixed(1) + "%",
+      (c.memory / 1024 / 1024).toFixed(0) + " MiB",
+    ]);
+    console.log(table(headers, rows));
+  } else {
+    console.log(fmt.dim("  No active containers (app may be sleeping)"));
   }
 
   console.log(
-    `\n${fmt.dim("Geo-routing: automatic (nearest region based on request origin)")}`
+    `\n${fmt.dim("Metrics from the last 15 minutes. Expect some delay in reporting.")}`
   );
 }
