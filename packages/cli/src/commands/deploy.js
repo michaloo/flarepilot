@@ -62,8 +62,11 @@ export async function deploy(nameOrPath, path, options) {
   }
 
   var tag = options.tag || `${Date.now()}`;
-  var localTag = `flarepilot-${name}:${tag}`;
-  var remoteTag = `${CF_REGISTRY}/${config.accountId}/flarepilot-${name}:${tag}`;
+  var prebuiltImage = options.image || null;
+  var localTag = prebuiltImage || `flarepilot-${name}:${tag}`;
+  var remoteTag = prebuiltImage && prebuiltImage.startsWith(CF_REGISTRY + "/")
+    ? prebuiltImage
+    : `${CF_REGISTRY}/${config.accountId}/flarepilot-${name}:${tag}`;
 
   // Load existing config from deployed worker (null on first deploy)
   var appConfig;
@@ -146,7 +149,11 @@ export async function deploy(nameOrPath, path, options) {
   process.stderr.write(`\n${fmt.bold("Deploy summary")}\n`);
   process.stderr.write(`${fmt.dim("─".repeat(40))}\n`);
   process.stderr.write(`  ${fmt.bold("App:")}        ${fmt.app(name)}${isFirstDeploy ? fmt.dim(" (new)") : ""}\n`);
-  process.stderr.write(`  ${fmt.bold("Path:")}       ${dockerPath}\n`);
+  if (prebuiltImage) {
+    process.stderr.write(`  ${fmt.bold("Source:")}     ${prebuiltImage} ${fmt.dim("(pre-built)")}\n`);
+  } else {
+    process.stderr.write(`  ${fmt.bold("Path:")}       ${dockerPath}\n`);
+  }
   process.stderr.write(`  ${fmt.bold("Image:")}      ${remoteTag}\n`);
   process.stderr.write(`  ${fmt.bold("Regions:")}    ${appConfig.regions.join(", ")}\n`);
   process.stderr.write(`  ${fmt.bold("Instances:")}  ${appConfig.instances || 2} per region\n`);
@@ -167,19 +174,25 @@ export async function deploy(nameOrPath, path, options) {
     }
   }
 
-  // 1. Build Docker image
-  phase("Building image");
-  status(`${localTag} for linux/amd64`);
-  dockerBuild(dockerPath, localTag);
+  var alreadyInRegistry = prebuiltImage && prebuiltImage.startsWith(CF_REGISTRY + "/");
 
-  // 2. Push to Cloudflare Registry
-  phase("Pushing to Cloudflare Registry");
-  status("Authenticating with registry.cloudflare.com...");
-  var creds = await getRegistryCredentials(config);
-  dockerLogin(CF_REGISTRY, creds.username, creds.password);
-  status(`Pushing ${remoteTag}...`);
-  dockerTag(localTag, remoteTag);
-  dockerPush(remoteTag);
+  if (!prebuiltImage) {
+    // 1. Build Docker image
+    phase("Building image");
+    status(`${localTag} for linux/amd64`);
+    dockerBuild(dockerPath, localTag);
+  }
+
+  if (!alreadyInRegistry) {
+    // 2. Push to Cloudflare Registry
+    phase("Pushing to Cloudflare Registry");
+    status("Authenticating with registry.cloudflare.com...");
+    var creds = await getRegistryCredentials(config);
+    dockerLogin(CF_REGISTRY, creds.username, creds.password);
+    status(`Pushing ${remoteTag}...`);
+    dockerTag(localTag, remoteTag);
+    dockerPush(remoteTag);
+  }
 
   // 3. Deploy worker
   phase("Deploying worker");
