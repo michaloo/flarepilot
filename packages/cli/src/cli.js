@@ -17,6 +17,7 @@ import { ps } from "./commands/ps.js";
 import { logs } from "./commands/logs.js";
 import { open } from "./commands/open.js";
 import { doctor } from "./commands/doctor.js";
+import { cost } from "./commands/cost.js";
 import { fmt } from "./lib/output.js";
 
 var program = new Command();
@@ -24,7 +25,7 @@ var program = new Command();
 program
   .name("flarepilot")
   .description("Deploy and manage apps on Cloudflare Containers")
-  .version("0.1.0");
+  .version("0.2.0");
 
 // --- Auth ---
 
@@ -204,6 +205,15 @@ program
     console.log(fmt.dim("  is not guaranteed."));
     console.log("");
   });
+
+// --- Cost ---
+
+program
+  .command("cost [name]")
+  .description("Show estimated costs for an app or all apps")
+  .option("--since <period>", "Date range: Nd (e.g. 7d) or YYYY-MM-DD (default: month to date)")
+  .option("--json", "Output as JSON")
+  .action(cost);
 
 // --- Doctor ---
 

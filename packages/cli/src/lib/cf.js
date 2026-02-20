@@ -71,6 +71,30 @@ export async function cfApi(method, path, body, apiToken, contentType) {
   return res.text();
 }
 
+// --- CF GraphQL Analytics API ---
+
+export async function cfGraphQL(config, query, variables) {
+  var res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  if (!res.ok) {
+    var text = await res.text();
+    throw new Error(`CF GraphQL: ${res.status} ${text}`);
+  }
+
+  var json = await res.json();
+  if (json.errors && json.errors.length > 0) {
+    throw new Error(`CF GraphQL: ${json.errors.map((e) => e.message).join(", ")}`);
+  }
+  return json.data;
+}
+
 // --- Registry ---
 
 export async function getRegistryCredentials(config) {

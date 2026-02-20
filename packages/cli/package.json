@@ -1,6 +1,6 @@
 {
   "name": "flarepilot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Heroku/Fly.io-style deployments on Cloudflare Containers",
   "bin": {
     "flarepilot": "./src/cli.js"
