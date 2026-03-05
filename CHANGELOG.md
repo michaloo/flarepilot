@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- Restored `--image` flag on `deploy` command for deploying pre-built Docker images (skip local build)
+- Fixed hard coded package version
+
 ## 0.3.0
 
 - Flattened monorepo into single package

@@ -23,13 +23,17 @@ import {
   dbImport, dbExport, dbToken, dbReset,
 } from "./commands/db.js";
 import { fmt } from "./lib/output.js";
+import { createRequire } from "module";
+
+var require = createRequire(import.meta.url);
+var { version } = require("../package.json");
 
 var program = new Command();
 
 program
   .name("flarepilot")
   .description("Deploy and manage apps on Cloudflare Containers")
-  .version("0.2.0");
+  .version(version);
 
 // --- Auth ---
 
@@ -42,7 +46,8 @@ program
 
 program
   .command("deploy [name] [path]")
-  .description("Deploy an app from a Dockerfile (name auto-generated if omitted)")
+  .description("Deploy an app from a Dockerfile or pre-built image")
+  .option("--image <image>", "Deploy a pre-built image (skip docker build)")
   .option("-t, --tag <tag>", "Image tag (default: deploy-<timestamp>)")
   .option("-e, --env <vars...>", "Set env vars (KEY=VALUE)")
   .option(
